@@ -1,0 +1,28 @@
+{
+  "name": "cron",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "cross-env NODE_ENV=development nodemon server.js",
+    "start:prod": "cross-env NODE_ENV=production node server.js",
+    "format": "npx prettier --write . --config .prettier",
+    "prod": "cross-env NODE_ENV=production dotenv -e .env.production -- node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.5.0",
+    "dotenv-cli": "^8.0.0",
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^6.3.2",
+    "mysql2": "^3.14.1",
+    "nodemon": "^3.1.10"
+  }
+}
