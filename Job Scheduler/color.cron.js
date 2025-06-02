@@ -1,3 +1,4 @@
+import { sql } from "../config/db.js";
 import { db } from "../config/firebase.js";
 import { getISTTime } from "../utils/common.method.js";
 
@@ -53,10 +54,10 @@ export async function updateColorGame() {
 
       if (shouldUpdate) {
         await db.collection("color-game-db").doc(doc.id).update(updates);
-        await sql.query(`CALL UpdateMarketStatus(?,?,?)`, [
+        await sql.query(`CALL colorgame_refactor.UpdateMarketStatus(?,?,?)`, [
           doc.id,
           updates.isActive,
-          updates.hideMarketWithUser,
+          updates.hideMarketWithUser ?? data.hideMarketWithUser,
         ]);
       }
     });

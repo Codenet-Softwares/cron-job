@@ -48,8 +48,8 @@ export async function updateLottery() {
         await sql.query(`CALL updateTicketRange(?,?,?,?)`, [
           doc.id,
           updates.isActive,
-          updates.hideMarketUser,
-          updates.inactiveGame,
+          updates.hideMarketUser ?? data.hideMarketUser,
+          updates.inactiveGame ?? data.inactiveGame,
         ]);
       }
     });
