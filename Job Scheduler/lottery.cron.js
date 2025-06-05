@@ -1,6 +1,7 @@
 import { sql } from "../config/db.js";
 import { db } from "../config/firebase.js";
 import { getISTTime } from "../utils/common.method.js";
+import NotificationService from "../utils/notification_service.js";
 
 export async function updateLottery() {
   const currentTime = getISTTime();
@@ -51,6 +52,47 @@ export async function updateLottery() {
           updates.hideMarketUser ?? data.hideMarketUser,
           updates.inactiveGame ?? data.inactiveGame,
         ]);
+
+        const [allUsers] = await sql.execute(`SELECT id, fcm_token, userName, userId 
+               FROM colorgame_refactor.user 
+               WHERE isActive = true AND fcm_token IS NOT NULL`
+        );
+
+        const notificationService = new NotificationService();
+        for (const user of allUsers) {
+          if (user.fcm_token) {
+            let title
+            let message
+
+            if (updates.inactiveGame === true && updates.isActive === true) {
+              title = `Market Live: ${data.marketName}`;
+              message = `The market "${data.marketName}" is now live. Start playing now!`;
+            } else if (updates.hideMarketUser === false) {
+              title = `Market Closed: ${data.marketName}`;
+              message = `The market "${data.marketName}" has been closed. Stay tuned for updates.`;
+            } else if (updates.isActive === false) {
+              title = `Market Suspended: ${data.marketName}`;
+              message = `The market "${data.marketName}" has been Suspended. Stay tuned for updates.`;
+            }
+
+            await notificationService.sendNotification(
+              title,
+              message,
+              {
+                type: "colorgame",
+                marketId: doc.id.toString(),
+                userId: user.userId.toString(),
+              },
+              user.fcm_token
+            );
+
+            await sql.execute(
+              `INSERT INTO colorgame_refactor.notification (UserId, MarketId, message, type)
+                       VALUES (?, ?, ?, ?)`,
+              [user.userId, doc.id, message, "colorgame"]
+            );
+          }
+        }
       }
     });
   } catch (error) {
