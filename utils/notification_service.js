@@ -44,7 +44,7 @@ export default class NotificationService {
     async deleteFcmToken(fcm_token) {
         try {
             const [rows] = await sql.query(
-                "SELECT * FROM user WHERE fcm_token = :fcm_token LIMIT 1",
+                "SELECT * FROM colorgame_refactor.user WHERE fcm_token = :fcm_token LIMIT 1",
                 [fcm_token]
             );
 
@@ -52,7 +52,7 @@ export default class NotificationService {
             const userId = rows[0].userId;
 
             await sql.query(
-                "UPDATE user SET fcm_token = '' WHERE userId = ?",
+                "UPDATE colorgame_refactor.user SET fcm_token = '' WHERE userId = ?",
                 [userId]
             );
 

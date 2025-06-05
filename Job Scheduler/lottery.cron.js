@@ -67,7 +67,7 @@ export async function updateLottery() {
             if (updates.inactiveGame === true && updates.isActive === true) {
               title = `Market Live: ${data.marketName}`;
               message = `The market "${data.marketName}" is now live. Start playing now!`;
-            } else if (updates.hideMarketUser === false) {
+            } else if (updates.inactiveGame === false) {
               title = `Market Closed: ${data.marketName}`;
               message = `The market "${data.marketName}" has been closed. Stay tuned for updates.`;
             } else if (updates.isActive === false) {
@@ -79,7 +79,7 @@ export async function updateLottery() {
               title,
               message,
               {
-                type: "colorgame",
+                type: "lottery",
                 marketId: doc.id.toString(),
                 userId: user.userId.toString(),
               },
@@ -89,7 +89,7 @@ export async function updateLottery() {
             await sql.execute(
               `INSERT INTO colorgame_refactor.notification (UserId, MarketId, message, type)
                        VALUES (?, ?, ?, ?)`,
-              [user.userId, doc.id, message, "colorgame"]
+              [user.userId, doc.id, message, "lottery"]
             );
           }
         }
