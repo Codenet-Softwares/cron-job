@@ -61,8 +61,6 @@ export async function updateLottery() {
         WHERE isActive = true AND fcm_token IS NOT NULL
       `);
 
-      const notificationService = new NotificationService();
-
       for (const user of allUsers) {
         if (!user.fcm_token) continue;
 
@@ -77,7 +75,7 @@ export async function updateLottery() {
           message = `The market "${data.marketName}" has been closed. Stay tuned for the next round.`;
         }
 
-        await notificationService.sendNotification(
+        await NotificationService.sendNotification(
           title,
           message,
           {
