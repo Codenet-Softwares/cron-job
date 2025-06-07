@@ -9,92 +9,92 @@ export async function updateLottery() {
   try {
     const snapshot = await db.collection("lottery-db").get();
 
-    snapshot.docs.forEach(async (doc) => {
+    for (const doc of snapshot.docs) {
       const data = doc.data();
 
-      if (data.isMarketExpired) return;
+      if (data.isMarketExpired) continue;
 
       let startTime = parseDate(data.start_time);
       let endTime = parseDate(data.end_time);
 
       if (!startTime || !endTime || isNaN(startTime) || isNaN(endTime)) {
-        return;
+        continue;
       }
 
       let updates = {};
       let shouldUpdate = false;
 
-      if (
-        currentTime >= startTime &&
-        currentTime <= endTime &&
-        !data.isActive
-      ) {
+      // Market goes live
+      if (currentTime >= startTime && currentTime <= endTime && !data.isActive) {
         updates.isActive = true;
         updates.hideMarketUser = true;
         updates.inactiveGame = true;
         updates.updatedAt = new Date().toISOString();
         shouldUpdate = true;
       }
+
+      // Market closes
       if (currentTime > endTime && data.isActive) {
         updates.isActive = false;
         updates.isMarketExpired = true;
+        updates.hideMarketUser = false;
+        updates.inactiveGame = false;
         updates.updatedAt = new Date().toISOString();
         shouldUpdate = true;
       }
 
-      if (shouldUpdate) {
-        console.log("first update", doc.id);
-        await db.collection("lottery-db").doc(doc.id).update(updates);
+      if (!shouldUpdate) continue;
 
-        await sql.query(`CALL updateTicketRange(?,?,?,?)`, [
-          doc.id,
-          updates.isActive,
-          updates.hideMarketUser ?? data.hideMarketUser,
-          updates.inactiveGame ?? data.inactiveGame,
-        ]);
+      console.log("Updating market:", doc.id);
+      await db.collection("lottery-db").doc(doc.id).update(updates);
 
-        const [allUsers] = await sql.execute(`SELECT id, fcm_token, userName, userId 
-               FROM colorgame_refactor.user 
-               WHERE isActive = true AND fcm_token IS NOT NULL`
+      await sql.query(`CALL updateTicketRange(?,?,?,?)`, [
+        doc.id,
+        updates.isActive,
+        updates.hideMarketUser ?? data.hideMarketUser,
+        updates.inactiveGame ?? data.inactiveGame,
+      ]);
+
+      const [allUsers] = await sql.execute(`
+        SELECT id, fcm_token, userName, userId 
+        FROM colorgame_refactor.user 
+        WHERE isActive = true AND fcm_token IS NOT NULL
+      `);
+
+      const notificationService = new NotificationService();
+
+      for (const user of allUsers) {
+        if (!user.fcm_token) continue;
+
+        let title = "";
+        let message = "";
+
+        if (updates.isActive === true) {
+          title = `Market Live: ${data.marketName}`;
+          message = `The market "${data.marketName}" is now live. Start playing now!`;
+        } else if (updates.isActive === false) {
+          title = `Market Closed: ${data.marketName}`;
+          message = `The market "${data.marketName}" has been closed. Stay tuned for the next round.`;
+        }
+
+        await notificationService.sendNotification(
+          title,
+          message,
+          {
+            type: "lottery",
+            marketId: doc.id.toString(),
+            userId: user.userId.toString(),
+          },
+          user.fcm_token
         );
 
-        const notificationService = new NotificationService();
-        for (const user of allUsers) {
-          if (user.fcm_token) {
-            let title
-            let message
-
-            if (updates.inactiveGame === true && updates.isActive === true) {
-              title = `Market Live: ${data.marketName}`;
-              message = `The market "${data.marketName}" is now live. Start playing now!`;
-            } else if (updates.inactiveGame === false) {
-              title = `Market Closed: ${data.marketName}`;
-              message = `The market "${data.marketName}" has been closed. Stay tuned for updates.`;
-            } else if (updates.isActive === false) {
-              title = `Market Suspended: ${data.marketName}`;
-              message = `The market "${data.marketName}" has been Suspended. Stay tuned for updates.`;
-            }
-
-            await notificationService.sendNotification(
-              title,
-              message,
-              {
-                type: "lottery",
-                marketId: doc.id.toString(),
-                userId: user.userId.toString(),
-              },
-              user.fcm_token
-            );
-
-            await sql.execute(
-              `INSERT INTO colorgame_refactor.notification (UserId, MarketId, message, type)
-                       VALUES (?, ?, ?, ?)`,
-              [user.userId, doc.id, message, "lottery"]
-            );
-          }
-        }
+        await sql.execute(
+          `INSERT INTO colorgame_refactor.notification (UserId, MarketId, message, type)
+           VALUES (?, ?, ?, ?)`,
+          [user.userId, doc.id, message, "lottery"]
+        );
       }
-    });
+    }
   } catch (error) {
     console.error("Error updating lottery:", error);
   }

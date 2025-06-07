@@ -13,33 +13,22 @@ export async function updateColorGame() {
       return;
     }
 
-    snapshot.docs.forEach(async (doc) => {
+    NotificationService.initializeFirebase();
+
+    for (const doc of snapshot.docs) {
       const data = doc.data();
 
-      if (data.isMarketClosed) return;
+      if (data.isMarketClosed) continue;
 
-      let startTime = data.startTime;
-      let endTime = data.endTime;
+      let startTime = parseDate(data.startTime);
+      let endTime = parseDate(data.endTime);
 
-      if (!startTime || !endTime) {
-        return;
-      }
-
-      startTime = parseDate(startTime);
-      endTime = parseDate(endTime);
-
-      if (!startTime || !endTime || isNaN(startTime) || isNaN(endTime)) {
-        return;
-      }
+      if (!startTime || !endTime || isNaN(startTime) || isNaN(endTime)) continue;
 
       let updates = {};
       let shouldUpdate = false;
 
-      if (
-        currentTime >= startTime &&
-        currentTime <= endTime &&
-        !data.isActive
-      ) {
+      if (currentTime >= startTime && currentTime <= endTime && !data.isActive) {
         updates.isActive = true;
         updates.hideMarketWithUser = true;
         updates.updatedAt = currentTime.toISOString();
@@ -49,62 +38,60 @@ export async function updateColorGame() {
       if (currentTime > endTime && data.isActive) {
         updates.isActive = false;
         updates.isMarketClosed = true;
+        updates.hideMarketWithUser = false;
         updates.updatedAt = currentTime.toISOString();
         shouldUpdate = true;
       }
 
-      if (shouldUpdate) {
-        await db.collection("color-game-db").doc(doc.id).update(updates);
-        await sql.query(`CALL colorgame_refactor.UpdateMarketStatus(?,?,?)`, [
-          doc.id,
-          updates.isActive,
-          updates.hideMarketWithUser ?? data.hideMarketWithUser,
-        ]);
+      if (!shouldUpdate) continue;
 
-        // Notification
-        const [allUsers] = await sql.execute(`SELECT id, fcm_token, userName, userId 
-       FROM colorgame_refactor.user 
-       WHERE isActive = true AND fcm_token IS NOT NULL`
-        );
+      // Apply updates to Firestore
+      await db.collection("color-game-db").doc(doc.id).update(updates);
 
-        const notificationService = new NotificationService();
+      // Apply updates to MySQL
+      await sql.query(`CALL colorgame_refactor.UpdateMarketStatus(?,?,?)`, [
+        doc.id,
+        updates.isActive,
+        updates.hideMarketWithUser ?? data.hideMarketWithUser,
+      ]);
+
+      if ("isActive" in updates) {
+        const [allUsers] = await sql.execute(`
+          SELECT id, fcm_token, userName, userId 
+          FROM colorgame_refactor.user 
+          WHERE isActive = true AND fcm_token IS NOT NULL
+        `);
+
+        const title = updates.isActive
+          ? `Market Live: ${data.marketName}`
+          : `Market Closed: ${data.marketName}`;
+
+        const message = updates.isActive
+          ? `The market "${data.marketName}" is now live. Start playing now!`
+          : `The market "${data.marketName}" has been closed. Stay tuned for the next round.`;
 
         for (const user of allUsers) {
-          if (user.fcm_token) {
-            let title
-            let message
+          if (!user.fcm_token) continue;
 
-            if (updates.hideMarketWithUser === true && updates.isActive === true) {
-              title = `Market Live: ${data.marketName}`;
-              message = `The market "${data.marketName}" is now live. Start playing now!`;
-            } else if (updates.hideMarketWithUser === false) {
-              title = `Market Closed: ${data.marketName}`;
-              message = `The market "${data.marketName}" has been closed. Stay tuned for updates.`;
-            } else if (updates.isActive === false) {
-              title = `Market Suspended: ${data.marketName}`;
-              message = `The market "${data.marketName}" has been Suspended. Stay tuned for updates.`;
-            }
+          await NotificationService.sendNotification(
+            title,
+            message,
+            {
+              type: "colorgame",
+              marketId: doc.id.toString(),
+              userId: user.userId.toString(),
+            },
+            user.fcm_token
+          );
 
-            await notificationService.sendNotification(
-              title,
-              message,
-              {
-                type: "colorgame",
-                marketId: doc.id.toString(),
-                userId: user.userId.toString(),
-              },
-              user.fcm_token
-            );
-
-            await sql.execute(
-              `INSERT INTO colorgame_refactor.notification (UserId, MarketId, message, type)
-               VALUES (?, ?, ?, ?)`,
-              [user.userId, doc.id, message, "colorgame"]
-            );
-          }
+          await sql.execute(
+            `INSERT INTO colorgame_refactor.Notifications (UserId, MarketId, message, type)
+             VALUES (?, ?, ?, ?)`,
+            [user.userId, doc.id, message, "colorgame"]
+          );
         }
       }
-    });
+    }
   } catch (error) {
     console.error("Error updating ColorGame:", error);
   }
