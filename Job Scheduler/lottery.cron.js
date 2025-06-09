@@ -87,9 +87,20 @@ export async function updateLottery() {
         );
 
         await sql.execute(
-          `INSERT INTO colorgame_refactor.notification (UserId, MarketId, message, type)
+          `INSERT INTO colorgame_refactor.Notifications (UserId, MarketId, message, type)
            VALUES (?, ?, ?, ?)`,
           [user.userId, doc.id, message, "lottery"]
+        );
+        const marketRef = db.collection("lottery-notification").doc(String(user.userId));
+        await marketRef.set(
+          {
+            updatedAt: new Date().toISOString(),
+            UserId: user.userId,
+            marketId: doc.id,
+            message: message,
+            type: "lottery",
+          },
+          { merge: true }
         );
       }
     }

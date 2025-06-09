@@ -89,6 +89,18 @@ export async function updateColorGame() {
              VALUES (?, ?, ?, ?)`,
             [user.userId, doc.id, message, "colorgame"]
           );
+          const marketRef = db.collection("color-game-notification").doc(user.userId)
+
+          await marketRef.set(
+            {
+              UserId: user.userId,
+              marketId: doc.id,
+              message: message,
+              type: "colorgame",
+              updatedAt: new Date().toISOString()
+            },
+            { merge: true }
+          );
         }
       }
     }
