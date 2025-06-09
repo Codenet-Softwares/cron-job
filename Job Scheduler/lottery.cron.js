@@ -36,9 +36,6 @@ export async function updateLottery() {
       // Market closes
       if (currentTime > endTime && data.isActive) {
         updates.isActive = false;
-        updates.isMarketExpired = true;
-        updates.hideMarketUser = false;
-        updates.inactiveGame = false;
         updates.updatedAt = new Date().toISOString();
         shouldUpdate = true;
       }
