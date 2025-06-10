@@ -83,11 +83,14 @@ export async function updateColorGame() {
           );
 
           await sql.execute(
-            `INSERT INTO colorgame_refactor.Notifications (UserId, MarketId, message, type)
-             VALUES (?, ?, ?, ?)`,
+            `INSERT INTO colorgame_refactor.Notifications 
+    (UserId, MarketId, message, type, createdAt, updatedAt)
+   VALUES (?, ?, ?, ?, NOW(), NOW())`,
             [user.userId, doc.id, message, "colorgame"]
           );
-          const marketRef = db.collection("color-game-notification").doc(user.userId)
+          const marketRef = db
+            .collection("color-game-notification")
+            .doc(user.userId);
 
           await marketRef.set(
             {
@@ -95,7 +98,7 @@ export async function updateColorGame() {
               marketId: doc.id,
               message: message,
               type: "colorgame",
-              updatedAt: new Date().toISOString()
+              updatedAt: new Date().toISOString(),
             },
             { merge: true }
           );

@@ -82,13 +82,15 @@ export async function updateLottery() {
           },
           user.fcm_token
         );
-
         await sql.execute(
-          `INSERT INTO colorgame_refactor.Notifications (UserId, MarketId, message, type)
-           VALUES (?, ?, ?, ?)`,
+          `INSERT INTO colorgame_refactor.Notifications 
+    (UserId, MarketId, message, type, createdAt, updatedAt)
+   VALUES (?, ?, ?, ?, NOW(), NOW())`,
           [user.userId, doc.id, message, "lottery"]
         );
-        const marketRef = db.collection("lottery-notification").doc(String(user.userId));
+        const marketRef = db
+          .collection("lottery-notification")
+          .doc(String(user.userId));
         await marketRef.set(
           {
             updatedAt: new Date().toISOString(),
