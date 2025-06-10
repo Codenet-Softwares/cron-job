@@ -85,7 +85,7 @@ export async function updateColorGame() {
           await sql.execute(
             `INSERT INTO colorgame_refactor.Notifications 
     (UserId, MarketId, message, type, createdAt, updatedAt)
-   VALUES (?, ?, ?, ?, ?, ?)`,
+   VALUES (?, ?, ?, ?, NOW(), NOW())`,
             [user.userId, doc.id, message, "colorgame", new Date().toISOString(), new Date().toISOString()]
           );
           const notificationsRef = db
