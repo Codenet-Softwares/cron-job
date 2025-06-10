@@ -98,6 +98,8 @@ export async function updateLottery() {
             marketId: doc.id,
             message: message,
             type: "lottery",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
           },
           { merge: true }
         );
