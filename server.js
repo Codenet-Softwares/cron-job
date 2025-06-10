@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { sql } from './config/db.js';
 import { updateLottery } from './Job Scheduler/lottery.cron.js';
 import { updateColorGame } from './Job Scheduler/color.cron.js';
+import { deleteMessage } from './Job Scheduler/delete-message.js';
 
 const envPath = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
 
@@ -21,6 +22,7 @@ app.listen(process.env.PORT, () => {
   try {
     await updateLottery();
      await updateColorGame();
+     await deleteMessage()
   } catch (err) {
     console.error('Error in updateColorGame:', err.message);
   } finally {
