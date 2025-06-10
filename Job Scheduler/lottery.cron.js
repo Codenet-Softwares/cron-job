@@ -84,25 +84,23 @@ export async function updateLottery() {
         );
         await sql.execute(
           `INSERT INTO colorgame_refactor.Notifications 
-    (UserId, MarketId, message, type)
-   VALUES (?, ?, ?, ?)`,
-          [user.userId, doc.id, message, "lottery"]
+    (UserId, MarketId, message, type, createdAt, updatedAt)
+   VALUES (?, ?, ?, ?, ?, ?)`,
+          [user.userId, doc.id, message, "lottery", new Date().toISOString(), new Date().toISOString()]
         );
-        const marketRef = db
+        const notificationsRef = db
           .collection("lottery-notification")
-          .doc(String(user.userId));
-        await marketRef.set(
-          {
-            updatedAt: new Date().toISOString(),
-            UserId: user.userId,
-            marketId: doc.id,
-            message: message,
-            type: "lottery",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
+          .doc(user.userId)
+          .collection("notifications");
+
+        await notificationsRef.add({
+          UserId: user.userId,
+          marketId: doc.id,
+          message: message,
+          type: "Lottery",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
       }
     }
   } catch (error) {

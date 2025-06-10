@@ -84,25 +84,23 @@ export async function updateColorGame() {
 
           await sql.execute(
             `INSERT INTO colorgame_refactor.Notifications 
-    (UserId, MarketId, message, type)
-   VALUES (?, ?, ?, ?)`,
-            [user.userId, doc.id, message, "colorgame"]
+    (UserId, MarketId, message, type, createdAt, updatedAt)
+   VALUES (?, ?, ?, ?, ?, ?)`,
+            [user.userId, doc.id, message, "colorgame", new Date().toISOString(), new Date().toISOString()]
           );
-          const marketRef = db
-            .collection("color-game-notification")
-            .doc(user.userId);
+          const notificationsRef = db
+          .collection("color-game-notification")
+          .doc(user.userId)
+          .collection("notifications");
 
-          await marketRef.set(
-            {
-              UserId: user.userId,
-              marketId: doc.id,
-              message: message,
-              type: "colorgame",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true }
-          );
+        await notificationsRef.add({
+          UserId: user.userId,
+          marketId: doc.id,
+          message: message,
+          type: "colorgame",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
         }
       }
     }
