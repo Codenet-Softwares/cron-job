@@ -51,57 +51,57 @@ export async function updateLottery() {
         updates.hideMarketUser ?? data.hideMarketUser,
         updates.inactiveGame ?? data.inactiveGame,
       ]);
+            if ("isActive" in updates) {
+              const [allUsers] = await sql.execute(`
+                SELECT id, fcm_token, userName, userId 
+                FROM colorgame_refactor.user 
+                WHERE isActive = true AND fcm_token IS NOT NULL
+              `);
+      
+              const title = updates.isActive
+                ? `Market Live: ${data.marketName}`
+                : `Market Closed: ${data.marketName}`;
+      
+              const message = updates.isActive
+                ? `The market "${data.marketName}" is now live. Start playing now!`
+                : `The market "${data.marketName}" has been closed. Stay tuned for the next round.`;
+      
+              for (const user of allUsers) {
+                if (!user.fcm_token) continue;
+      
+                await NotificationService.sendNotification(
+                  title,
+                  message,
+                  {
+                    // type: "lottery",
+                    marketId: doc.id.toString(),
+                    userId: user.userId.toString(),
+                  },
+                  user.fcm_token
+                );
+      
+                await sql.execute(
+                  `INSERT INTO colorgame_refactor.Notifications 
+          (UserId, MarketId, message, type, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+                  [user.userId, doc.id, message, "lottery", new Date().toISOString(), new Date().toISOString()]
+                );
+                const notificationsRef = db
+                .collection("lottery-notification")
+                .doc(user.userId)
+                .collection("notifications");
+      
+              await notificationsRef.add({
+                UserId: user.userId,
+                marketId: doc.id,
+                message: message,
+                type: "lottery",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+              }
+            }
 
-      const [allUsers] = await sql.execute(`
-        SELECT id, fcm_token, userName, userId 
-        FROM colorgame_refactor.user 
-        WHERE isActive = true AND fcm_token IS NOT NULL
-      `);
-
-      for (const user of allUsers) {
-        if (!user.fcm_token) continue;
-
-        let title = "";
-        let message = "";
-
-        if (updates.isActive === true) {
-          title = `Market Live: ${data.marketName}`;
-          message = `The market "${data.marketName}" is now live. Start playing now!`;
-        } else if (updates.isActive === false) {
-          title = `Market Closed: ${data.marketName}`;
-          message = `The market "${data.marketName}" has been closed. Stay tuned for the next round.`;
-        }
-
-        await NotificationService.sendNotification(
-          title,
-          message,
-          {
-            type: "lottery",
-            marketId: doc.id.toString(),
-            userId: user.userId.toString(),
-          },
-          user.fcm_token
-        );
-        await sql.execute(
-          `INSERT INTO colorgame_refactor.Notifications 
-    (UserId, MarketId, message, type, createdAt, updatedAt)
-   VALUES (?, ?, ?, ?, NOW(), NOW())`,
-          [user.userId, doc.id, message, "lottery", new Date().toISOString(), new Date().toISOString()]
-        );
-        const notificationsRef = db
-          .collection("lottery-notification")
-          .doc(user.userId)
-          .collection("notifications");
-
-        await notificationsRef.add({
-          UserId: user.userId,
-          marketId: doc.id,
-          message: message,
-          type: "Lottery",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-      }
     }
   } catch (error) {
     console.error("Error updating lottery:", error);
